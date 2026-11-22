@@ -75,6 +75,7 @@
 <div id="vAdmin" class="hidden">
   <h1>Organizer</h1>
   <p class="count"><b id="cNum">0</b> of <span id="cTotal"></span> sent. <span id="missing"></span></p>
+  <button id="copyAll" class="plain" style="margin-top:6px">Copy all</button>
   <button id="outBtn" class="plain" style="margin-top:6px">Sign out</button>
   <table>
     <thead><tr><th>Status</th><th>Name</th><th>Code name</th><th>Wish list</th><th></th></tr></thead>
@@ -172,6 +173,15 @@ $("sendBtn").addEventListener("click", async () => {
 });
 
 /* ---------- Admin ---------- */
+const entryText = (name, d) => "Name: " + name + "\nCode name: " + d.codeName + "\nWish list: " + d.wishlist;
+async function copyText(text, btn){
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const t = document.createElement("textarea"); t.value = text; document.body.append(t); t.select();
+    document.execCommand("copy"); t.remove();
+  }
+  const old = btn.textContent; btn.textContent = "Copied"; setTimeout(() => btn.textContent = old, 1200);
+}
 function renderAdmin(){
   const rows = $("rows"); rows.textContent = "";
   let sent = 0; const missing = [];
@@ -183,9 +193,11 @@ function renderAdmin(){
     const last = document.createElement("td");
     if (d) {
       sent++;
+      const c = document.createElement("button"); c.textContent = "Copy"; c.className = "small"; c.style.marginRight = "6px";
+      c.onclick = () => copyText(entryText(name, d), c);
       const b = document.createElement("button"); b.textContent = "Delete"; b.className = "small";
       b.onclick = () => { if (confirm("Delete the entry of " + name + "? They can send again.")) api.remove(id); };
-      last.append(b);
+      last.append(c, b);
     } else missing.push(name);
     tr.append(last); rows.append(tr);
   });
@@ -193,6 +205,10 @@ function renderAdmin(){
   $("missing").textContent = missing.length ? "" : "Everyone has sent!";
 }
 $("outBtn").addEventListener("click", () => api.signOut());
+$("copyAll").addEventListener("click", e => {
+  const all = STUDENTS.map((n, i) => data[idOf(i)] ? entryText(n, data[idOf(i)]) : null).filter(Boolean).join("\n\n");
+  copyText(all || "No entries yet.", e.target);
+});
 $("loginBtn").addEventListener("click", async () => {
   $("loginErr").textContent = "";
   try { await api.signIn($("em").value.trim(), $("pw").value); }
