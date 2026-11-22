@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gift Exchange</title>
+<style>
+  :root{--red:#a3252b;--green:#1f4a38;--gold:#c9a24b;--ink:#222;--mute:#66625a;--line:#ddd6c6;--bg:#fbf6ea}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);
+       max-width:760px;margin:0 auto;padding:0 20px 40px;line-height:1.5}
+  body::before{content:"";display:block;height:12px;margin:0 -20px;
+       background:repeating-linear-gradient(135deg,var(--red) 0 12px,#fff 12px 24px)}
+  h1{font-family:Georgia,"Times New Roman",serif;font-weight:normal;font-size:2rem;margin:0 -20px 14px;
+       padding:22px 20px 18px;background:var(--green);color:#fdf3dc;border-bottom:4px solid var(--gold)}
+  .lead{color:var(--mute);margin:0 0 8px}
+  label{display:block;margin-top:18px;font-weight:600;font-size:.95rem}
+  input,select,textarea{width:100%;padding:10px;font:inherit;margin-top:6px;background:#fff;color:var(--ink);
+       border:1px solid var(--line);border-radius:4px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--green);outline-offset:1px;border-color:var(--green)}
+  textarea{height:140px;resize:vertical}
+  button{font:inherit;font-weight:600;padding:10px 22px;margin-top:18px;cursor:pointer;background:var(--red);
+       color:#fff;border:0;border-radius:4px}
+  button:hover{background:#821d22}
+  button:disabled{opacity:.6;cursor:wait}
+  button.small{margin:0;padding:4px 10px;font-size:.85rem;background:transparent;color:var(--red);border:1px solid var(--line)}
+  button.small:hover{background:#fff;border-color:var(--red)}
+  button.plain{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.plain:hover{background:#fff}
+  table{width:100%;border-collapse:collapse;margin-top:16px;background:#fff;font-size:.95rem}
+  th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{font-size:.85rem;color:var(--mute);font-weight:600;background:var(--bg)}
+  tr.sent td{background:#eef5ef}
+  tr.sent td:first-child{color:var(--green);font-weight:600}
+  tr:not(.sent) td{color:var(--mute)}
+  .count{font-size:1.1rem;margin:0 0 4px}
+  .err{color:#b3261e;min-height:1.4em;margin:10px 0 0}
+  .hidden{display:none}
+  .demo{margin-top:40px;padding-top:12px;border-top:1px solid var(--line);font-size:.85rem;color:var(--mute)}
+  @media (max-width:560px){table{font-size:.85rem}th,td{padding:6px}}
+</style>
+</head>
+<body>
+
+<!-- CLASSMATE VIEW -->
+<div id="vWish" class="hidden">
+  <h1>Gift Exchange</h1>
+  <p class="lead">Choose your name, then type your code name and wish list. Only the organizer will see it.</p>
+  <div id="form">
+    <label for="who">Your name</label>
+    <select id="who"></select>
+
+    <label for="code">Your code name</label>
+    <input id="code" maxlength="40" autocomplete="off">
+
+    <label for="wish">Your wish list</label>
+    <textarea id="wish" maxlength="600"></textarea>
+
+    <button id="sendBtn">Send</button>
+    <p class="err" id="err"></p>
+  </div>
+  <p id="done" class="hidden"><b>Sent!</b> Your wish list is with the organizer.</p>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div id="vLogin" class="hidden">
+  <h1>Organizer sign in</h1>
+  <label for="em">Email</label><input id="em" type="email">
+  <label for="pw">Password</label><input id="pw" type="password">
+  <button id="loginBtn">Sign in</button>
+  <p class="err" id="loginErr"></p>
+</div>
+
+<!-- ADMIN VIEW -->
+<div id="vAdmin" class="hidden">
+  <h1>Organizer</h1>
+  <p class="count"><b id="cNum">0</b> of <span id="cTotal"></span> sent. <span id="missing"></span></p>
+  <button id="outBtn" class="plain" style="margin-top:6px">Sign out</button>
+  <table>
+    <thead><tr><th>Status</th><th>Name</th><th>Code name</th><th>Wish list</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+
+<div class="demo hidden" id="demoBar">
+  Demo mode (sample data, nothing is saved):
+  <a href="#" id="dWish">Classmate view</a> |
+  <a href="#admin" id="dAdmin">Admin view</a>
+</div>
+
+<script type="module">
+/* ====== PASTE YOUR FIREBASE CONFIG HERE ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyACnlyrJPCabZHfumcxscaN4hexPGWe3OU",
+  authDomain: "codename-f7eb6.firebaseapp.com",
+  projectId: "codename-f7eb6",
+  appId: "1:525892649534:web:54533f3e3c4c016549076f"
+};
+/* ============================================= */
+
+const STUDENTS = [
+  "Acedillo, Greg Bryan","Adobas, Noeh John C.","Almacin, Jesse Harris G.","Arbiol, Igor",
+  "Arbiol, Lyle Christopher P.","Barola, Noemi S.","Bestudio, Lance Nigel O.","Caturza, Jemarie G.",
+  "Delapiña, Angelie V.","Dolorito, Grace D.","Epiz, Ryan Arbie M.","Estrera, Rheana P.",
+  "Fuertes, Allysa Kathlyn O.","Gerzon, Michñino William B.","Gonzales, Mikylla","Gonzales, Arianne",
+  "Juanillo, Mary Rose C.","Marquez, Blesslie S.","Montederamos, Maria Melchi D.","Nilo, Alexa Jane C.",
+  "Oraiz, Cassandra Leigh","Pedalino, Alexa Laureze E.","Pesco, 9 R.","Radores, Ailzhan Jalica T.",
+  "Rebaldo, John William J.","Robellos Jr., Sovannie M.","Sacro, Kirsten Vera T.","Saludo, Gabriel Benedict F.",
+  "Saludo, Joshua Ethaniel F.","Techo, Viatrez L.","Vivares, Jeff Joaquin N."
+];
+const idOf = i => "s" + String(i + 1).padStart(2, "0");   // s01 ... s31
+const DEMO = firebaseConfig.apiKey.startsWith("PASTE");
+const $ = id => document.getElementById(id);
+let data = {};   // docId -> {student, codeName, wishlist}
+let api;
+
+if (DEMO) {
+  const subs = new Set(); let user = true;
+  data = {
+    s01:{student:STUDENTS[0], codeName:"Snowy Owl", wishlist:"Milk tea gift card, candle"},
+    s05:{student:STUDENTS[4], codeName:"Mistletoe", wishlist:"Ballpen set, stickers"},
+    s20:{student:STUDENTS[19], codeName:"Jingle Bell", wishlist:"Tote bag, notebook"}
+  };
+  const push = () => subs.forEach(f => f({...data}));
+  api = {
+    async submit(id, rec){ if (data[id]) throw {code:"permission-denied"}; data[id] = rec; push(); },
+    watch(cb){ subs.add(cb); cb({...data}); return () => subs.delete(cb); },
+    async remove(id){ delete data[id]; push(); },
+    async signIn(){ user = true; }, async signOut(){ user = false; },
+    onAuth(cb){ cb(user); }
+  };
+  $("demoBar").classList.remove("hidden");
+} else {
+  const base = "https://www.gstatic.com/firebasejs/10.12.2/";
+  const [{initializeApp}, fs, au] = await Promise.all([
+    import(base + "firebase-app.js"), import(base + "firebase-firestore.js"), import(base + "firebase-auth.js")
+  ]);
+  const app = initializeApp(firebaseConfig);
+  const db = fs.getFirestore(app), auth = au.getAuth(app);
+  api = {
+    submit: (id, rec) => fs.setDoc(fs.doc(db, "wishes", id), {...rec, createdAt: fs.serverTimestamp()}),
+    watch: (cb, onErr) => fs.onSnapshot(fs.collection(db, "wishes"), snap => {
+      const out = {}; snap.forEach(d => out[d.id] = d.data()); cb(out);
+    }, onErr),
+    remove: id => fs.deleteDoc(fs.doc(db, "wishes", id)),
+    signIn: (e, p) => au.signInWithEmailAndPassword(auth, e, p),
+    signOut: () => au.signOut(auth),
+    onAuth: cb => au.onAuthStateChanged(auth, u => cb(!!u))
+  };
+}
+
+/* ---------- Classmate form ---------- */
+$("who").innerHTML = '<option value="">Choose your name</option>' +
+  STUDENTS.map((n, i) => `<option value="${i}">${n}</option>`).join("");
+
+$("sendBtn").addEventListener("click", async () => {
+  const i = $("who").value, code = $("code").value.trim(), wish = $("wish").value.trim();
+  $("err").textContent = "";
+  if (i === "") return $("err").textContent = "Choose your name.";
+  if (!code) return $("err").textContent = "Type your code name.";
+  if (!wish) return $("err").textContent = "Type your wish list.";
+  $("sendBtn").disabled = true;
+  try {
+    await api.submit(idOf(+i), {student: STUDENTS[+i], codeName: code, wishlist: wish});
+    $("form").classList.add("hidden"); $("done").classList.remove("hidden");
+  } catch (e) {
+    $("err").textContent = e.code === "permission-denied"
+      ? "This name has already sent a wish list. Message the organizer if you need to change it."
+      : "Could not send. Check your internet and try again.";
+  }
+  $("sendBtn").disabled = false;
+});
+
+/* ---------- Admin ---------- */
+function renderAdmin(){
+  const rows = $("rows"); rows.textContent = "";
+  let sent = 0; const missing = [];
+  STUDENTS.forEach((name, i) => {
+    const id = idOf(i), d = data[id];
+    const tr = document.createElement("tr"); if (d) tr.className = "sent";
+    const cells = [d ? "☑ Sent" : "☐", name, d ? d.codeName : "", d ? d.wishlist : ""];
+    cells.forEach(t => { const td = document.createElement("td"); td.textContent = t; td.style.whiteSpace = "pre-wrap"; tr.append(td); });
+    const last = document.createElement("td");
+    if (d) {
+      sent++;
+      const b = document.createElement("button"); b.textContent = "Delete"; b.className = "small";
+      b.onclick = () => { if (confirm("Delete the entry of " + name + "? They can send again.")) api.remove(id); };
+      last.append(b);
+    } else missing.push(name);
+    tr.append(last); rows.append(tr);
+  });
+  $("cNum").textContent = sent; $("cTotal").textContent = STUDENTS.length;
+  $("missing").textContent = missing.length ? "" : "Everyone has sent!";
+}
+$("outBtn").addEventListener("click", () => api.signOut());
+$("loginBtn").addEventListener("click", async () => {
+  $("loginErr").textContent = "";
+  try { await api.signIn($("em").value.trim(), $("pw").value); }
+  catch { $("loginErr").textContent = "Wrong email or password."; }
+});
+$("pw").addEventListener("keydown", e => { if (e.key === "Enter") $("loginBtn").click(); });
+
+/* ---------- Router: add #admin to the link for the organizer ---------- */
+let signedIn = false, unsub = null;
+function route(){
+  const admin = location.hash === "#admin";
+  $("vWish").classList.toggle("hidden", admin);
+  $("vLogin").classList.toggle("hidden", !(admin && !signedIn));
+  $("vAdmin").classList.toggle("hidden", !(admin && signedIn));
+  if (unsub) { unsub(); unsub = null; }
+  if (admin && signedIn) unsub = api.watch(d => { data = d; renderAdmin(); }, () => { signedIn = false; route(); });
+}
+$("dWish").addEventListener("click", e => { e.preventDefault(); history.replaceState(null, "", location.pathname); route(); });
+window.addEventListener("hashchange", route);
+api.onAuth(u => { signedIn = u; route(); });
+route();
+</script>
+</body>
+</html>
